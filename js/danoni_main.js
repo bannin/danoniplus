@@ -2092,7 +2092,7 @@ function titleInit() {
 	// リロードボタン
 	const btnReload = createButton({
 		id: `btnReload`,
-		name: `R`,
+		name: `<span class="text">R</span><span class="fukidashi">ページをリロード</span>`,
 		x: 10,
 		y: 10,
 		width: 30,
@@ -2102,6 +2102,7 @@ function titleInit() {
 		hoverColor: C_CLR_DEFHOVER,
 		align: C_ALIGN_CENTER
 	}, _ => location.reload(true));
+	btnReload.className = `css-fukidashi`;
 	divRoot.appendChild(btnReload);
 
 	// 製作者表示
@@ -3035,7 +3036,7 @@ function optionInit() {
 	// データセーブフラグの切替
 	const btnSave = createButton({
 		id: `btnSave`,
-		name: `Data Save`,
+		name: `<span class="text">Data Save</span><span id="btnSaveFukidashi" class="fukidashi">ハイスコアやキーコンフィグなどの保存有無を設定します。</span>`,
 		x: 0,
 		y: 5,
 		width: g_sWidth / 5,
@@ -3059,6 +3060,7 @@ function optionInit() {
 	btnSave.style.color = (g_stateObj.dataSaveFlg ? `#ffffff` : `#666666`);
 	btnSave.style.borderStyle = `solid`;
 	btnSave.style.borderColor = (g_stateObj.dataSaveFlg ? `#000000 #cccccc` : `#000000 #333333`);
+	document.querySelector(`#btnSaveFukidashi`).style.width = `270px`;
 }
 
 function musicAfterLoaded() {
