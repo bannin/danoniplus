@@ -2917,6 +2917,18 @@ function headerConvert(_dosObj) {
 	}
 	obj.tuningInit = obj.tuning;
 
+	// 制作者情報（複数）
+	if (_dosObj.makerInfo !== undefined && _dosObj.makerInfo !== ``) {
+		let makerInfos = _dosObj.makerInfo.split(`\r\n`).join(`\n`);
+		makerInfos = makerInfos.split(`\n`);
+		obj.makerInfo = [];
+		makerInfos.forEach(makerInfo => {
+			if (makerInfo !== ``) {
+				obj.makerInfo.push(makerInfo.split(`,`));
+			}
+		});
+	}
+
 	// 譜面情報
 	if (_dosObj.difData !== undefined && _dosObj.difData !== ``) {
 		const difs = _dosObj.difData.split(`$`);
