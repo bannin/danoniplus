@@ -2630,7 +2630,51 @@ function titleInit() {
 		hoverColor: C_CLR_DEFAULT,
 		align: C_ALIGN_LEFT
 	}, _ => {
-		if (setVal(g_headerObj.creatorUrl, ``, C_TYP_STRING) !== ``) {
+		if (g_headerObj.makerInfo != undefined) {
+			const makerListL = createSprite(`divRoot`, `makerListL`, g_sWidth / 2 - 200, 90, 140, 300);
+			makerListL.style.overflow = `auto`;
+			makerListL.style.backgroundColor = `#111111`;
+			makerListL.style.opacity = 0.95;
+
+			const makerListR = createSprite(`divRoot`, `makerListR`, g_sWidth / 2 - 60, 90, 260, 300);
+			makerListR.style.overflow = `auto`;
+			makerListR.style.backgroundColor = `#111111`;
+			makerListR.style.opacity = 0.95;
+
+			// 全リスト作成
+			for (let j = 0; j < g_headerObj.makerInfo.length; j++) {
+				let text = `${g_headerObj.makerInfo[j][0]}`;
+				const makerButton = makeDifLblButton(`makerBtn${j}`, text, j, _ => {
+
+					// 制作者コメント
+					if (document.querySelector(`#lblMakerInfo`) === null) {
+						const lblMakerInfo = createDivLabel(`lblMakerInfo`, 5, 5,
+							parseFloat(makerListR.style.width) - 10, parseFloat(makerListR.style.height) - 30, 14, `#ffffff`,
+							`${g_headerObj.makerInfo[j][2]}`);
+						lblMakerInfo.style.textAlign = C_ALIGN_LEFT;
+						makerListR.appendChild(lblMakerInfo);
+					} else {
+						document.querySelector(`#lblMakerInfo`).innerHTML = `${g_headerObj.makerInfo[j][2]}`;
+					}
+
+					// 制作者リンク
+					if (document.querySelector(`#lnkMakerUrl`) !== null) {
+						makerListR.removeChild(document.querySelector(`#lnkMakerUrl`));
+					}
+					const lnkMakerUrl = makeDifLblButton(`lnkMakerUrl`, `Link`, 11, _ => {
+						if (setVal(g_headerObj.makerInfo[j][1], ``, C_TYP_STRING) !== ``) {
+							window.open(g_headerObj.makerInfo[j][1], `_blank`);
+						}
+					});
+					lnkMakerUrl.style.width = `110px`;
+					makerListR.appendChild(lnkMakerUrl);
+
+				});
+				makerButton.style.width = `110px`;
+				makerListL.appendChild(makerButton);
+			}
+
+		} else if (setVal(g_headerObj.creatorUrl, ``, C_TYP_STRING) !== ``) {
 			window.open(g_headerObj.creatorUrl, `_blank`);
 		}
 	});
