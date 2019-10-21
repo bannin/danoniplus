@@ -4,12 +4,12 @@
  * 
  * Source by tickle
  * Created : 2018/10/08
- * Revised : 2019/10/02
+ * Revised : 2019/10/21
  * 
  * https://github.com/cwtickle/danoniplus
  */
-const g_version = `Ver 8.6.3`;
-const g_revisedDate = `2019/10/02`;
+const g_version = `Ver 9.4.1`;
+const g_revisedDate = `2019/10/21`;
 const g_alphaVersion = ``;
 
 // カスタム用バージョン (danoni_custom.js 等で指定可)
@@ -188,6 +188,7 @@ let g_initialFlg = false;
 /** キーコンフィグ設定 */
 let g_kcType = `Main`;
 let g_colorType = `Default`;
+let g_baseDisp = `Settings`;
 const C_KYC_HEIGHT = 150;
 const C_KYC_REPHEIGHT = 20;
 
@@ -350,6 +351,7 @@ const g_stateObj = {
 	lifeMode: `Border`,
 	lifeBorder: 70,
 	lifeInit: 25,
+	lifeVariable: C_FLG_OFF,
 
 	extraKeyFlg: false,
 	dataSaveFlg: true,
@@ -362,7 +364,8 @@ const g_stateObj = {
 	d_speed: C_FLG_ON,
 	d_arroweffect: C_FLG_ON,
 	d_lyrics: C_FLG_ON,
-	d_background: C_FLG_ON
+	d_background: C_FLG_ON,
+	appearance: `Visible`,
 };
 
 const C_VAL_MAXLIFE = 1000;
@@ -373,6 +376,7 @@ let C_CLR_BORDER = `#555555`;
 let C_CLR_BACKLIFE = `#222222`;
 const C_LFE_SURVIVAL = `Survival`;
 const C_LFE_BORDER = `Border`;
+const C_LFE_CUSTOM = `Custom`;
 
 let g_gaugeOptionObj = {};
 let g_gaugeType;
@@ -400,6 +404,9 @@ let g_adjustmentNum = C_MAX_ADJUSTMENT;
 
 let g_volumes = [0, 0.5, 1, 2, 5, 10, 25, 50, 75, 100];
 let g_volumeNum = g_volumes.length - 1;
+
+let g_appearances = [`Visible`, `Hidden`, `Sudden`, `Slit`];
+let g_appearanceNum = 0;
 
 // サイズ(後で指定)
 let g_sWidth;
@@ -1001,46 +1008,9 @@ const C_MSG_E_0103 = `新しいキー:{0}の[stepRtn]が未定義です。(E-010
 const C_MSG_E_0104 = `新しいキー:{0}の[keyCtrl]が未定義です。(E-0104)<br>
 	|keyCtrl{0}=75,79,76,80,187,32/0|`;
 
-// ローカルストレージ設定
-const g_checkStorage = localStorage.getItem(location.href);
+// ローカルストレージ設定 (作品別)
 let g_localStorage;
-if (g_checkStorage) {
-	g_localStorage = JSON.parse(g_checkStorage);
-
-	// Adjustment初期値設定
-	if (g_localStorage.adjustment !== undefined) {
-		g_stateObj.adjustment = setVal(g_localStorage.adjustment, 0, C_TYP_NUMBER);
-		g_adjustmentNum = g_adjustments.findIndex(adjustment => adjustment === g_stateObj.adjustment);
-		if (g_volumeNum < 0) {
-			g_volumeNum = C_MAX_ADJUSTMENT;
-		}
-	} else {
-		g_localStorage.adjustment = 0;
-	}
-
-	// Volume初期値設定
-	if (g_localStorage.volume !== undefined) {
-		g_stateObj.volume = setVal(g_localStorage.volume, 100, C_TYP_NUMBER);
-		g_volumeNum = g_volumes.findIndex(volume => volume === g_stateObj.volume);
-		if (g_volumeNum < 0) {
-			g_volumeNum = 0;
-		}
-	} else {
-		g_localStorage.volume = 100;
-	}
-
-	// ハイスコア取得準備
-	if (g_localStorage.highscores === undefined) {
-		g_localStorage.highscores = {};
-	}
-
-} else {
-	g_localStorage = {
-		adjustment: 0,
-		volume: 100,
-		highscores: {},
-	};
-}
+let g_localStorageUrl;
 
 // ローカルストレージ設定 (ドメイン・キー別)
 let g_checkKeyStorage;
@@ -1325,8 +1295,6 @@ function createImg(_id, _imgPath, _x, _y, _width, _height) {
 
 /**
  * 矢印オブジェクトの作成（色付きマスク版）
- * - cssスタイルに mask-image を使っているため、Chrome/Safari/FirefoxとIE/Edgeで処理を振り分ける。
- * - IE/Edgeは色指定なし。
  * @param {string} _id 
  * @param {string} _color 
  * @param {number} _x 
@@ -1336,46 +1304,25 @@ function createImg(_id, _imgPath, _x, _y, _width, _height) {
  */
 function createArrowEffect(_id, _color, _x, _y, _size, _rotate) {
 
+	const div = createDiv(_id, _x, _y, _size, _size);
+
 	// 矢印・おにぎり判定
 	let rotate;
 	let charaStyle;
-	let charaImg;
-	let sizeX;
 	if (isNaN(Number(_rotate))) {
 		rotate = 0;
 		charaStyle = _rotate;
-		charaImg = eval(`C_IMG_${_rotate.toUpperCase()}`);
-		sizeX = _size;
 	} else {
 		rotate = _rotate;
 		charaStyle = `arrow`;
-		charaImg = C_IMG_ARROW;
-		sizeX = _size;
 	}
-
-	const div = createDiv(_id, _x, _y, sizeX, _size);
 	div.align = C_ALIGN_CENTER;
 
-	let edgeVersion = 0;
-	if (g_userAgent.indexOf(`edge`) !== -1) {
-		edgeVersion = Math.floor(g_userAgent.slice(g_userAgent.indexOf(`edge`) + 5));
+	if (_color !== ``) {
+		div.style.backgroundColor = _color;
 	}
-
-	// IE/Edge(V17以前)の場合は色なし版を表示
-	if (g_userAgent.indexOf(`msie`) !== -1 ||
-		g_userAgent.indexOf(`trident`) !== -1 ||
-		(g_userAgent.indexOf(`edge`) !== -1 && edgeVersion < 18)) {
-		div.innerHTML = `<img id=${_id}img src=${charaImg}
-			style=width:${sizeX}px;height:${_size}px;transform:rotate(${rotate}deg)>`;
-
-	} else {
-		// それ以外は指定された色でマスク
-		if (_color !== ``) {
-			div.style.backgroundColor = _color;
-		}
-		div.className = charaStyle;
-		div.style.transform = `rotate(${rotate}deg)`;
-	}
+	div.className = charaStyle;
+	div.style.transform = `rotate(${rotate}deg)`;
 	div.setAttribute(`color`, _color);
 
 	return div;
@@ -1389,7 +1336,6 @@ function createColorObject(_id, _color, _x, _y, _width, _height,
 	// 矢印・おにぎり判定
 	let rotate;
 	let charaStyle;
-	let charaImg;
 	if (isNaN(Number(_rotate))) {
 		rotate = 0;
 		charaStyle = _rotate + _styleName;
@@ -1399,29 +1345,13 @@ function createColorObject(_id, _color, _x, _y, _width, _height,
 		charaStyle = _styleName;
 		div.setAttribute(`type`, `arrow`);
 	}
-	charaImg = eval(`C_IMG_${charaStyle.toUpperCase()}`);
 	div.align = C_ALIGN_CENTER;
 
-	let edgeVersion = 0;
-	if (g_userAgent.indexOf(`edge`) !== -1) {
-		edgeVersion = Math.floor(g_userAgent.slice(g_userAgent.indexOf(`edge`) + 5));
+	if (_color !== ``) {
+		div.style.backgroundColor = _color;
 	}
-
-	// IE/Edge(V17以前)の場合は色なし版を表示
-	if (g_userAgent.indexOf(`msie`) !== -1 ||
-		g_userAgent.indexOf(`trident`) !== -1 ||
-		(g_userAgent.indexOf(`edge`) !== -1 && edgeVersion < 18)) {
-		div.innerHTML = `<img id=${_id}img src=${charaImg}
-			style=width:${_width}px;height:${_height}px;transform:rotate(${rotate}deg)>`;
-
-	} else {
-		// それ以外は指定された色でマスク
-		if (_color !== ``) {
-			div.style.backgroundColor = _color;
-		}
-		div.className = charaStyle;
-		div.style.transform = `rotate(${rotate}deg)`;
-	}
+	div.className = charaStyle;
+	div.style.transform = `rotate(${rotate}deg)`;
 	div.setAttribute(`color`, _color);
 
 	return div;
@@ -1641,9 +1571,6 @@ function clearWindow() {
 	// ボタン、オブジェクトをクリア (divRoot配下のもの)
 	const divRoot = document.querySelector(`#divRoot`);
 	while (divRoot.hasChildNodes()) {
-		/*
-		alert(divRoot.firstChild.getAttribute(`lsnrkey`));
-		*/
 		g_handler.removeListener(divRoot.firstChild.getAttribute(`lsnrkey`));
 		g_handler.removeListener(divRoot.firstChild.getAttribute(`lsnrkeyTS`));
 		g_handler.removeListener(divRoot.firstChild.getAttribute(`lsnrkeyTE`));
@@ -1894,8 +1821,60 @@ function initialControl() {
 		g_enableDecodeURI = setVal(decodeUriInput.value, false, C_TYP_BOOLEAN);
 	}
 
+	// 作品別ローカルストレージの読み込み
+	loadLocalStorage();
+
 	// 譜面データの読み込み
 	loadDos(true);
+}
+
+/**
+ * 作品別ローカルストレージの読み込み・初期設定
+ */
+function loadLocalStorage() {
+	// URLからscoreIdを削除
+	const url = new URL(location.href);
+	url.searchParams.delete('scoreId');
+	g_localStorageUrl = url.toString();
+
+	const checkStorage = localStorage.getItem(g_localStorageUrl);
+	if (checkStorage) {
+		g_localStorage = JSON.parse(checkStorage);
+
+		// Adjustment初期値設定
+		if (g_localStorage.adjustment !== undefined) {
+			g_stateObj.adjustment = setVal(g_localStorage.adjustment, 0, C_TYP_NUMBER);
+			g_adjustmentNum = g_adjustments.findIndex(adjustment => adjustment === g_stateObj.adjustment);
+			if (g_volumeNum < 0) {
+				g_volumeNum = C_MAX_ADJUSTMENT;
+			}
+		} else {
+			g_localStorage.adjustment = 0;
+		}
+
+		// Volume初期値設定
+		if (g_localStorage.volume !== undefined) {
+			g_stateObj.volume = setVal(g_localStorage.volume, 100, C_TYP_NUMBER);
+			g_volumeNum = g_volumes.findIndex(volume => volume === g_stateObj.volume);
+			if (g_volumeNum < 0) {
+				g_volumeNum = 0;
+			}
+		} else {
+			g_localStorage.volume = 100;
+		}
+
+		// ハイスコア取得準備
+		if (g_localStorage.highscores === undefined) {
+			g_localStorage.highscores = {};
+		}
+
+	} else {
+		g_localStorage = {
+			adjustment: 0,
+			volume: 100,
+			highscores: {},
+		};
+	}
 }
 
 /**
@@ -2357,7 +2336,7 @@ function drawMainSpriteData(_frame, _depthName) {
 		} else {
 			if (tmpObj.depth === `ALL`) {
 				for (let j = 0; j <= g_scoreObj[`${_depthName}MaxDepth`]; j++) {
-					document.querySelector(`#${_depthName}${spriteUpper}Sprite${tmpObj.depth}`).innerHTML = ``;
+					document.querySelector(`#${_depthName}Sprite${j}`).innerHTML = ``;
 				}
 			} else {
 				baseSprite.innerHTML = ``;
@@ -2596,7 +2575,7 @@ function titleInit() {
 				volume: 100,
 				highscores: {},
 			};
-			localStorage.setItem(location.href, JSON.stringify(g_localStorage));
+			localStorage.setItem(g_localStorageUrl, JSON.stringify(g_localStorage));
 			location.reload(true);
 		}
 	});
@@ -3068,19 +3047,35 @@ function headerConvert(_dosObj) {
 	g_gaugeOptionObj = {
 		survival: [`Original`, `Light`, `NoRecovery`, `SuddenDeath`, `Practice`],
 		border: [`Normal`, `Easy`, `Hard`, `SuddenDeath`],
+		custom: [],
 
 		initSurvival: [25, 25, 100, 100, 50],
 		rcvSurvival: [6, 6, 0, 0, 0],
 		dmgSurvival: [40, 20, 50, obj.maxLifeVal, 0],
 		typeSurvival: [C_LFE_SURVIVAL, C_LFE_SURVIVAL, C_LFE_SURVIVAL, C_LFE_SURVIVAL, C_LFE_SURVIVAL],
+		varSurvival: [C_FLG_OFF, C_FLG_OFF, C_FLG_OFF, C_FLG_OFF, C_FLG_OFF],
 		clearSurvival: [0, 0, 0, 0, 0],
 
 		initBorder: [25, 25, 100, 100],
 		rcvBorder: [2, 2, 1, 0],
 		dmgBorder: [7, 4, 50, obj.maxLifeVal],
 		typeBorder: [C_LFE_BORDER, C_LFE_BORDER, C_LFE_BORDER, C_LFE_SURVIVAL],
-		clearBorder: [70, 70, 0, 0]
+		varBorder: [C_FLG_ON, C_FLG_ON, C_FLG_ON, C_FLG_OFF],
+		clearBorder: [70, 70, 0, 0],
+
+		varCustom: [],
 	};
+
+	// カスタムゲージ設定
+	// |customGauge=Original::F,Normal::V,Escape::V|
+	if (_dosObj.customGauge !== undefined) {
+		const customGauges = _dosObj.customGauge.split(`,`);
+		for (let j = 0; j < customGauges.length; j++) {
+			const customGaugeSets = customGauges[j].split(`::`);
+			g_gaugeOptionObj.custom[j] = customGaugeSets[0];
+			g_gaugeOptionObj.varCustom[j] = (customGaugeSets[1] !== `V` ? C_FLG_OFF : C_FLG_ON);
+		}
+	}
 
 	// ライフ設定のカスタム部分取得（譜面ヘッダー加味）
 	for (let j = 0; j < g_gaugeOptionObj.survival.length; j++) {
@@ -3088,6 +3083,9 @@ function headerConvert(_dosObj) {
 	}
 	for (let j = 0; j < g_gaugeOptionObj.border.length; j++) {
 		getGaugeSetting(_dosObj, g_gaugeOptionObj.border[j], obj);
+	}
+	for (let j = 0; j < g_gaugeOptionObj.custom.length; j++) {
+		getGaugeSetting(_dosObj, g_gaugeOptionObj.custom[j], obj);
 	}
 
 	// 初期色情報
@@ -3160,8 +3158,8 @@ function headerConvert(_dosObj) {
 	}
 
 	// ダミー譜面の設定
-	if (_dosObj.dummyScoreNo !== undefined) {
-		obj.dummyScoreNos = _dosObj.dummyScoreNo.split(`$`);
+	if (_dosObj.dummyId !== undefined) {
+		obj.dummyScoreNos = _dosObj.dummyId.split(`$`);
 	}
 
 	// 無音のフレーム数
@@ -3279,6 +3277,9 @@ function headerConvert(_dosObj) {
 		(g_presetCustomDesignUse !== undefined && (`ready` in g_presetCustomDesignUse) ?
 			setVal(g_presetCustomDesignUse.ready, false, C_TYP_BOOLEAN) : false), C_TYP_BOOLEAN);
 
+	// デフォルトReady表示の遅延時間設定
+	obj.readyDelayFrame = setVal(_dosObj.readyDelayFrame, 0, C_TYP_NUMBER);
+
 	// デフォルト曲名表示のフォントサイズ
 	obj.titlesize = setVal(_dosObj.titlesize, ``, C_TYP_STRING);
 
@@ -3318,6 +3319,9 @@ function headerConvert(_dosObj) {
 
 	// Gauge
 	obj.gaugeUse = setVal(_dosObj.gaugeUse, setVal(g_presetSettingUse.gauge, true, C_TYP_BOOLEAN), C_TYP_BOOLEAN);
+
+	// Appearance
+	obj.appearanceUse = setVal(_dosObj.appearanceUse, setVal(g_presetSettingUse.appearance, true, C_TYP_BOOLEAN), C_TYP_BOOLEAN);
 
 	// 別キーパターンの使用有無
 	obj.transKeyUse = setVal(_dosObj.transKeyUse, true, C_TYP_BOOLEAN);
@@ -3628,6 +3632,7 @@ function optionInit() {
 
 	drawDefaultBackImage(``);
 	const divRoot = document.querySelector(`#divRoot`);
+	g_baseDisp = `Settings`;
 
 	// タイトル文字描画
 	const lblTitle = getTitleDivLabel(`lblTitle`,
@@ -4094,8 +4099,8 @@ function createOptionWindow(_sprite) {
 	optionsprite.appendChild(lblGauge);
 
 	// ゲージ設定詳細　縦位置: ゲージ設定+1
-	const lblGauge2 = createDivLabel(`lblGauge2`, C_LEN_SETLBL_LEFT, C_LEN_SETLBL_HEIGHT * (setNoGauge + 1) - 3,
-		C_LEN_SETLBL_WIDTH, C_LEN_SETLBL_HEIGHT, 11, C_CLR_TITLE, ``);
+	const lblGauge2 = createDivLabel(`lblGauge2`, C_LEN_SETLBL_LEFT, C_LEN_SETLBL_HEIGHT * (setNoGauge + 1),
+		C_LEN_SETLBL_WIDTH, C_LEN_SETLBL_HEIGHT * 2, 11, C_CLR_TITLE, ``);
 	optionsprite.appendChild(lblGauge2);
 
 	if (g_headerObj.gaugeUse) {
@@ -4137,7 +4142,8 @@ function createOptionWindow(_sprite) {
 		if (_scrollNum !== 0) {
 			gaugeChange(g_gaugeNum);
 		}
-		document.querySelector(`#lblGauge2`).innerHTML = gaugeFormat(g_stateObj.lifeMode, g_stateObj.lifeBorder, g_stateObj.lifeRcv, g_stateObj.lifeDmg, g_stateObj.lifeInit);
+		document.querySelector(`#lblGauge2`).innerHTML = gaugeFormat(g_stateObj.lifeMode,
+			g_stateObj.lifeBorder, g_stateObj.lifeRcv, g_stateObj.lifeDmg, g_stateObj.lifeInit, g_stateObj.lifeVariable);
 	}
 
 	/**
@@ -4153,10 +4159,16 @@ function createOptionWindow(_sprite) {
 					g_gaugeType = C_LFE_SURVIVAL;
 					g_stateObj.lifeBorder = 0;
 					g_stateObj.lifeMode = C_LFE_SURVIVAL;
+					g_stateObj.lifeVariable = C_FLG_OFF;
 				} else {
 					g_gaugeType = C_LFE_BORDER;
 					g_stateObj.lifeBorder = g_headerObj.lifeBorders[g_stateObj.scoreId];
 					g_stateObj.lifeMode = C_LFE_BORDER;
+					g_stateObj.lifeVariable = C_FLG_ON;
+				}
+				if (g_gaugeOptionObj.custom.length > 0) {
+					g_gaugeType = C_LFE_CUSTOM;
+					g_stateObj.lifeVariable = g_gaugeOptionObj.varCustom[_gaugeNum];
 				}
 				g_gauges = JSON.parse(JSON.stringify(g_gaugeOptionObj[g_gaugeType.toLowerCase()]));
 				g_stateObj.gauge = g_gauges[g_gaugeNum];
@@ -4172,11 +4184,14 @@ function createOptionWindow(_sprite) {
 			}
 		} else {
 			// 設定されたゲージ設定、カーソルに合わせて設定値を更新
-			g_stateObj.lifeMode = g_gaugeOptionObj[`type${g_gaugeType}`][_gaugeNum];
-			g_stateObj.lifeBorder = g_gaugeOptionObj[`clear${g_gaugeType}`][_gaugeNum];
-			g_stateObj.lifeInit = g_gaugeOptionObj[`init${g_gaugeType}`][_gaugeNum];
-			g_stateObj.lifeRcv = g_gaugeOptionObj[`rcv${g_gaugeType}`][_gaugeNum];
-			g_stateObj.lifeDmg = g_gaugeOptionObj[`dmg${g_gaugeType}`][_gaugeNum];
+			g_stateObj.lifeVariable = g_gaugeOptionObj[`var${g_gaugeType}`][_gaugeNum];
+			if (g_gaugeOptionObj.custom.length === 0) {
+				g_stateObj.lifeMode = g_gaugeOptionObj[`type${g_gaugeType}`][_gaugeNum];
+				g_stateObj.lifeBorder = g_gaugeOptionObj[`clear${g_gaugeType}`][_gaugeNum];
+				g_stateObj.lifeInit = g_gaugeOptionObj[`init${g_gaugeType}`][_gaugeNum];
+				g_stateObj.lifeRcv = g_gaugeOptionObj[`rcv${g_gaugeType}`][_gaugeNum];
+				g_stateObj.lifeDmg = g_gaugeOptionObj[`dmg${g_gaugeType}`][_gaugeNum];
+			}
 		}
 
 		// ゲージ設定(Light, Easy)の初期化
@@ -4202,8 +4217,10 @@ function createOptionWindow(_sprite) {
 			if (setVal(tmpGaugeObj.lifeBorders[tmpScoreId], ``, C_TYP_STRING) !== ``) {
 				if (tmpGaugeObj.lifeBorders[tmpScoreId] === `x`) {
 					g_stateObj.lifeBorder = 0;
+					g_stateObj.lifeMode = C_LFE_SURVIVAL;
 				} else {
 					g_stateObj.lifeBorder = tmpGaugeObj.lifeBorders[tmpScoreId];
+					g_stateObj.lifeMode = C_LFE_BORDER;
 				}
 			}
 			if (setVal(tmpGaugeObj.lifeRecoverys[tmpScoreId], ``, C_TYP_FLOAT) !== ``) {
@@ -4221,16 +4238,37 @@ function createOptionWindow(_sprite) {
 	/**
 	 * ゲージ設定の詳細表示を整形
 	 */
-	function gaugeFormat(_mode, _border, _rcv, _dmg, _init) {
+	function gaugeFormat(_mode, _border, _rcv, _dmg, _init, _lifeValFlg) {
 		const initVal = g_headerObj.maxLifeVal * _init / 100;
-		const borderVal = g_headerObj.maxLifeVal * _border / 100;
+		const borderVal = (_mode === C_LFE_BORDER && _border !== 0 ?
+			g_headerObj.maxLifeVal * _border / 100 : `-`);
 
-		if (_mode === C_LFE_BORDER) {
-			if (borderVal !== 0) {
-				return `[Start:${initVal}, Border:${borderVal}, <br>Rcv:${_rcv}, Dmg:${_dmg}]`;
-			}
+		let lifeValCss = ``;
+		if (_lifeValFlg === C_FLG_ON) {
+			lifeValCss = ` class="lifeVal"`;
 		}
-		return `[Start:${initVal}, Rcv:${_rcv}, Dmg:${_dmg}]`;
+
+		// 整形用にライフ初期値を整数、回復・ダメージ量を小数第1位で丸める
+		const init = Math.round(initVal);
+		const border = (borderVal !== `-` ? Math.round(borderVal * 10) / 10 : `-`);
+		const rcv = Math.round(_rcv * 10) / 10;
+		const dmg = Math.round(_dmg * 10) / 10;
+
+		return `<table class="gaugeTable">
+					<tr>
+						<td>Start</td>
+						<td>Border</td>
+						<td>Recovery</td>
+						<td>Damage</td>
+					</tr>
+					<tr class="gaugeVal">
+						<td style="width:85px;">${init}/${g_headerObj.maxLifeVal}</td>
+						<td>${border}</td>
+						<td${lifeValCss}>${rcv}</td>
+						<td${lifeValCss}>${dmg}</td>
+					</tr>
+				</table>
+				`;
 	}
 
 	// ---------------------------------------------------
@@ -4340,37 +4378,6 @@ function createOptionWindow(_sprite) {
 	optionsprite.appendChild(makeMiniButton(`lnkVolume`, `L`, setNoVolume, _ => {
 		setSetting(-1, `volume`, `%`);
 	}));
-
-	// ---------------------------------------------------
-	/**
-	 * 無効化用ラベル作成
-	 * @param {string} _id 
-	 * @param {number} _heightPos 
-	 * @param {string} _defaultStr 
-	 */
-	function makeDisabledLabel(_id, _heightPos, _defaultStr) {
-		const lbl = createDivLabel(_id, C_LEN_SETLBL_LEFT, C_LEN_SETLBL_HEIGHT * _heightPos,
-			C_LEN_SETLBL_WIDTH, C_LEN_SETLBL_HEIGHT, C_SIZ_SETLBL, `#666666`,
-			_defaultStr);
-		lbl.style.textAlign = C_ALIGN_CENTER;
-		return lbl;
-	}
-
-	/**
-	 * 設定メイン・汎用
-	 * @param {number} _scrollNum 
-	 * @param {string} _settingName
-	 * @param {string} _unitName
-	 */
-	function setSetting(_scrollNum, _settingName, _unitName = ``) {
-		if (_scrollNum > 0) {
-			eval(`g_${_settingName}Num = (g_${_settingName}Num === g_${_settingName}s.length - 1 ? 0 : (g_${_settingName}Num + _scrollNum >= g_${_settingName}s.length ? g_${_settingName}s.length - 1 : g_${_settingName}Num + _scrollNum))`);
-		} else if (_scrollNum < 0) {
-			eval(`g_${_settingName}Num = (g_${_settingName}Num === 0 ? g_${_settingName}s.length - 1 : (g_${_settingName}Num + _scrollNum <= 0 ? 0 : g_${_settingName}Num + _scrollNum))`);
-		}
-		eval(`g_stateObj.${_settingName} = g_${_settingName}s[g_${_settingName}Num]`);
-		eval(`document.querySelector('#lnk${_settingName.slice(0, 1).toUpperCase()}${_settingName.slice(1)}').innerHTML = g_stateObj.${_settingName} + _unitName`);
-	}
 
 	/**
 	 * 譜面初期化処理
@@ -4545,6 +4552,36 @@ function createOptionWindow(_sprite) {
 }
 
 /**
+ * 設定メイン・汎用
+ * @param {number} _scrollNum 
+ * @param {string} _settingName
+ * @param {string} _unitName
+ */
+function setSetting(_scrollNum, _settingName, _unitName = ``) {
+	if (_scrollNum > 0) {
+		eval(`g_${_settingName}Num = (g_${_settingName}Num === g_${_settingName}s.length - 1 ? 0 : (g_${_settingName}Num + _scrollNum >= g_${_settingName}s.length ? g_${_settingName}s.length - 1 : g_${_settingName}Num + _scrollNum))`);
+	} else if (_scrollNum < 0) {
+		eval(`g_${_settingName}Num = (g_${_settingName}Num === 0 ? g_${_settingName}s.length - 1 : (g_${_settingName}Num + _scrollNum <= 0 ? 0 : g_${_settingName}Num + _scrollNum))`);
+	}
+	eval(`g_stateObj.${_settingName} = g_${_settingName}s[g_${_settingName}Num]`);
+	eval(`document.querySelector('#lnk${_settingName.slice(0, 1).toUpperCase()}${_settingName.slice(1)}').innerHTML = g_stateObj.${_settingName} + _unitName`);
+}
+
+/**
+ * 無効化用ラベル作成
+ * @param {string} _id 
+ * @param {number} _heightPos 
+ * @param {string} _defaultStr 
+ */
+function makeDisabledLabel(_id, _heightPos, _defaultStr) {
+	const lbl = createDivLabel(_id, C_LEN_SETLBL_LEFT, C_LEN_SETLBL_HEIGHT * _heightPos,
+		C_LEN_SETLBL_WIDTH, C_LEN_SETLBL_HEIGHT, C_SIZ_SETLBL, `#666666`,
+		_defaultStr);
+	lbl.style.textAlign = C_ALIGN_CENTER;
+	return lbl;
+}
+
+/**
  * 保存済みキーコンフィグ取得処理
  * @param {object} _localStorage 保存先のローカルストレージ名
  * @param {string} _extraKeyName 特殊キー名(通常キーは省略)
@@ -4667,6 +4704,7 @@ function settingsDisplayInit() {
 
 	drawDefaultBackImage(``);
 	const divRoot = document.querySelector(`#divRoot`);
+	g_baseDisp = `Display`;
 
 	// 譜面初期情報ロード許可フラグ
 	g_canLoadDifInfoFlg = false;
@@ -4810,6 +4848,37 @@ function createSettingsDisplayWindow(_sprite) {
 	makeDisplayButton(`background`, 3, 1);
 	makeDisplayButton(`arrowEffect`, 4, 1);
 
+	// ---------------------------------------------------
+	// 矢印の見え方 (Appearance)
+	// 縦位置: 6
+	const setNoAppearance = 6;
+	const lblAppearance = createDivLabel(`lblAppearance`, 0, C_LEN_SETLBL_HEIGHT * setNoAppearance,
+		100, C_LEN_SETLBL_HEIGHT, C_SIZ_SETLBL, C_CLR_TITLE,
+		`<span style=color:#cc99ff>A</span>ppearance`);
+	optionsprite.appendChild(lblAppearance);
+
+	if (g_headerObj.appearanceUse) {
+		const lnkAppearance = makeSettingLblButton(`lnkAppearance`, g_stateObj.appearance, setNoAppearance, _ => {
+			setSetting(1, `appearance`);
+		});
+		lnkAppearance.oncontextmenu = _ => {
+			setSetting(-1, `appearance`);
+			return false;
+		}
+		optionsprite.appendChild(lnkAppearance);
+
+		// 右回し・左回しボタン
+		optionsprite.appendChild(makeMiniButton(`lnkAppearance`, `R`, setNoAppearance, _ => {
+			setSetting(1, `appearance`);
+		}));
+		optionsprite.appendChild(makeMiniButton(`lnkAppearance`, `L`, setNoAppearance, _ => {
+			setSetting(-1, `appearance`);
+		}));
+	} else {
+		lblAppearance.style.color = `#666666`;
+		optionsprite.appendChild(makeDisabledLabel(`lnkAppearance`, setNoAppearance, g_stateObj.appearance));
+	}
+
 	/**
 	 * Display表示/非表示ボタン
 	 * @param {*} _name 
@@ -4922,7 +4991,7 @@ function keyConfigInit() {
 		}
 		keyconSprite.appendChild(createArrowEffect(`arrow${j}`, g_headerObj.setColor[g_keyObj[`color${keyCtrlPtn}`][j]],
 			g_keyObj.blank * stdPos + (kWidth - C_ARW_WIDTH) / 2,
-			C_KYC_HEIGHT * dividePos, 50,
+			C_KYC_HEIGHT * dividePos, C_ARW_WIDTH,
 			g_keyObj[`stepRtn${keyCtrlPtn}`][j]));
 
 		for (let k = 0; k < g_keyObj[`keyCtrl${keyCtrlPtn}`][j].length; k++) {
@@ -5042,7 +5111,12 @@ function keyConfigInit() {
 		g_currentk = 0;
 		g_prevKey = 0;
 		clearWindow();
-		optionInit();
+
+		if (g_baseDisp === `Settings`) {
+			optionInit();
+		} else {
+			settingsDisplayInit();
+		}
 	});
 	divRoot.appendChild(btnBack);
 
@@ -5391,11 +5465,6 @@ function loadingScoreInit2() {
 	}
 	g_scoreObj = scoreConvert(g_rootObj, scoreIdHeader, 0, dummyIdHeader);
 
-	// ライフ回復・ダメージ量の計算
-	// フリーズ始点でも通常判定させる場合は総矢印数を水増しする
-	if (g_headerObj.frzStartjdgUse) {
-		g_allArrow += g_allFrz / 2;
-	}
 	calcLifeVals(g_allArrow + g_allFrz / 2);
 
 	// 最終フレーム数の取得
@@ -5712,6 +5781,12 @@ function scoreConvert(_dosObj, _scoreNo, _preblankFrame, _dummyNo = ``) {
 		}
 	}
 
+	// ライフ回復・ダメージ量の計算
+	// フリーズ始点でも通常判定させる場合は総矢印数を水増しする
+	if (g_headerObj.frzStartjdgUse) {
+		g_allArrow += g_allFrz / 2;
+	}
+
 	/**
 	 * 矢印データの格納
 	 * @param {array} _data 
@@ -5857,7 +5932,13 @@ function scoreConvert(_dosObj, _scoreNo, _preblankFrame, _dummyNo = ``) {
 	 * @param {string} _scoreNo 
 	 */
 	function setCssMotionData(_header, _scoreNo) {
-		const dosCssMotionData = _dosObj[`${_header}Motion${_scoreNo}_data`];
+		let dosCssMotionData;
+		if (_dosObj[`${_header}Motion${_scoreNo}_data`] !== undefined) {
+			dosCssMotionData = _dosObj[`${_header}Motion${_scoreNo}_data`];
+		} else if (_dosObj[`${_header}Motion_data`] !== undefined) {
+			dosCssMotionData = _dosObj[`${_header}Motion_data`];
+		}
+
 		let cssMotionData = [];
 
 		if (dosCssMotionData !== undefined && dosCssMotionData !== `` && g_stateObj.d_arroweffect === C_FLG_ON) {
@@ -5889,10 +5970,15 @@ function scoreConvert(_dosObj, _scoreNo, _preblankFrame, _dummyNo = ``) {
 	if (g_stateObj.d_lyrics === C_FLG_ON) {
 
 		let inputWordData = ``;
-		if (_dosObj[`word${_scoreNo}_data`] !== undefined) {
-			inputWordData = _dosObj[`word${_scoreNo}_data`];
-		} else if (_dosObj.word_data !== undefined) {
-			inputWordData = _dosObj.word_data;
+		let wordDataList;
+		if (g_stateObj.reverse === C_FLG_ON) {
+			wordDataList = [_dosObj[`wordRev${_scoreNo}_data`], _dosObj.wordRev_data, _dosObj[`word${_scoreNo}_data`], _dosObj.word_data];
+		} else {
+			wordDataList = [_dosObj[`word${_scoreNo}_data`], _dosObj.word_data];
+		}
+		const wordData = wordDataList.find((v) => v !== undefined);
+		if (wordData !== undefined) {
+			inputWordData = wordData;
 		}
 		if (inputWordData !== ``) {
 			let tmpArrayData = inputWordData.split(`\r`).join(`\n`);
@@ -5946,14 +6032,15 @@ function scoreConvert(_dosObj, _scoreNo, _preblankFrame, _dummyNo = ``) {
 	obj.maskData = [];
 	obj.maskData.length = 0;
 	if (g_stateObj.d_background === C_FLG_ON) {
+		let maskDataList;
 		if (g_stateObj.reverse === C_FLG_ON) {
-			if (_dosObj[`maskRev${_scoreNo}_data`] !== undefined) {
-				[obj.maskData, obj.maskMaxDepth] = makeSpriteData(_dosObj[`maskRev${_scoreNo}_data`], calcFrame);
-			} else if (_dosObj[`mask${_scoreNo}_data`] !== undefined) {
-				[obj.maskData, obj.maskMaxDepth] = makeSpriteData(_dosObj[`mask${_scoreNo}_data`], calcFrame);
-			}
-		} else if (_dosObj[`mask${_scoreNo}_data`] !== undefined) {
-			[obj.maskData, obj.maskMaxDepth] = makeSpriteData(_dosObj[`mask${_scoreNo}_data`], calcFrame);
+			maskDataList = [_dosObj[`maskRev${_scoreNo}_data`], _dosObj.maskRev_data, _dosObj[`mask${_scoreNo}_data`], _dosObj.mask_data];
+		} else {
+			maskDataList = [_dosObj[`mask${_scoreNo}_data`], _dosObj.mask_data];
+		}
+		const maskData = maskDataList.find((v) => v !== undefined);
+		if (maskData !== undefined) {
+			[obj.maskData, obj.maskMaxDepth] = makeSpriteData(maskData, calcFrame);
 		}
 	}
 
@@ -5962,14 +6049,15 @@ function scoreConvert(_dosObj, _scoreNo, _preblankFrame, _dummyNo = ``) {
 	obj.backData = [];
 	obj.backData.length = 0;
 	if (g_stateObj.d_background === C_FLG_ON) {
+		let backDataList;
 		if (g_stateObj.reverse === C_FLG_ON) {
-			if (_dosObj[`backRev${_scoreNo}_data`] !== undefined) {
-				[obj.backData, obj.backMaxDepth] = makeSpriteData(_dosObj[`backRev${_scoreNo}_data`], calcFrame);
-			} else if (_dosObj[`back${_scoreNo}_data`] !== undefined) {
-				[obj.backData, obj.backMaxDepth] = makeSpriteData(_dosObj[`back${_scoreNo}_data`], calcFrame);
-			}
-		} else if (_dosObj[`back${_scoreNo}_data`] !== undefined) {
-			[obj.backData, obj.backMaxDepth] = makeSpriteData(_dosObj[`back${_scoreNo}_data`], calcFrame);
+			backDataList = [_dosObj[`backRev${_scoreNo}_data`], _dosObj.backRev_data, _dosObj[`back${_scoreNo}_data`], _dosObj.back_data];
+		} else {
+			backDataList = [_dosObj[`back${_scoreNo}_data`], _dosObj.back_data];
+		}
+		const backData = backDataList.find((v) => v !== undefined);
+		if (backData !== undefined) {
+			[obj.backData, obj.backMaxDepth] = makeSpriteData(backData, calcFrame);
 		}
 	}
 
@@ -6056,10 +6144,10 @@ function scoreConvert(_dosObj, _scoreNo, _preblankFrame, _dummyNo = ``) {
  * @param {string} _str 
  */
 function escapeHtml(_str) {
-	let newstr = _str.split(`<`).join(`&lt;`);
+	let newstr = _str.split(`&`).join(`&amp;`);
+	newstr = newstr.split(`<`).join(`&lt;`);
 	newstr = newstr.split(`>`).join(`&gt;`);
-	newstr = newstr.split("`").join(`&quot;`);
-	newstr = newstr.split(`&`).join(`&amp;`);
+	newstr = newstr.split(`"`).join(`&quot;`);
 
 	return newstr;
 }
@@ -6070,7 +6158,7 @@ function escapeHtml(_str) {
  */
 function calcLifeVals(_allArrows) {
 
-	if (g_stateObj.lifeMode === C_LFE_BORDER) {
+	if (g_stateObj.lifeVariable === C_FLG_ON) {
 		g_workObj.lifeRcv = calcLifeVal(g_stateObj.lifeRcv, _allArrows);
 		g_workObj.lifeDmg = calcLifeVal(g_stateObj.lifeDmg, _allArrows);
 	} else {
@@ -6998,7 +7086,7 @@ function getArrowSettings() {
 				g_keyObj[`keyCtrl${keyCtrlPtn}`] = JSON.parse(JSON.stringify(g_keyObj[`keyCtrl${keyCtrlPtn}d`]));
 			}
 		}
-		localStorage.setItem(location.href, JSON.stringify(g_localStorage));
+		localStorage.setItem(g_localStorageUrl, JSON.stringify(g_localStorage));
 	}
 }
 
@@ -7099,20 +7187,20 @@ function MainInit() {
 			const stepShadow = createColorObject(`stepShadow${j}`, `#000000`,
 				g_workObj.stepX[j],
 				g_stepY + (g_distY - g_stepY - 50) * g_workObj.dividePos[j],
-				50, 50, g_workObj.stepRtn[j], `arrowShadow`);
+				C_ARW_WIDTH, C_ARW_WIDTH, g_workObj.stepRtn[j], `arrowShadow`);
 			mainSprite.appendChild(stepShadow);
 			stepShadow.style.opacity = 0.7;
 		}
 
 		const step = createArrowEffect(`step${j}`, `#999999`,
 			g_workObj.stepX[j],
-			g_stepY + (g_distY - g_stepY - 50) * g_workObj.dividePos[j], 50,
+			g_stepY + (g_distY - g_stepY - 50) * g_workObj.dividePos[j], C_ARW_WIDTH,
 			g_workObj.stepRtn[j]);
 		mainSprite.appendChild(step);
 
 		const stepHit = createArrowEffect(`stepHit${j}`, `#999999`,
 			g_workObj.stepX[j] - 15,
-			g_stepY + (g_distY - g_stepY - 50) * g_workObj.dividePos[j] - 15, 80,
+			g_stepY + (g_distY - g_stepY - 50) * g_workObj.dividePos[j] - 15, C_ARW_WIDTH + 30,
 			g_workObj.stepRtn[j]);
 		stepHit.style.opacity = 0;
 		stepHit.setAttribute(`cnt`, 0);
@@ -7121,6 +7209,40 @@ function MainInit() {
 		// ステップゾーンOFF設定
 		if (g_stateObj.d_stepzone === C_FLG_OFF) {
 			step.style.display = C_DIS_NONE;
+		}
+	}
+
+	// 矢印・フリーズアロー描画スプライト（ステップゾーンの上に配置）
+	const arrowSprite = [
+		createSprite(`mainSprite`, `arrowSprite0`, 0, 0, g_sWidth, g_sHeight),
+		createSprite(`mainSprite`, `arrowSprite1`, 0, 0, g_sWidth, g_sHeight)
+	];
+
+	// Appearanceのオプション適用時は一部描画を隠す
+	if (g_stateObj.appearance !== `Visible`) {
+		arrowSprite[0].classList.add(`${g_stateObj.appearance}0`);
+		arrowSprite[1].classList.add(`${g_stateObj.appearance}1`);
+	}
+
+	// フリーズアローヒット部分
+	for (let j = 0; j < keyNum; j++) {
+		const frzHit = createSprite(`mainSprite`, `frzHit${j}`,
+			g_workObj.stepX[j], g_stepY + (g_distY - g_stepY - 50) * g_workObj.dividePos[j],
+			C_ARW_WIDTH, C_ARW_WIDTH);
+		frzHit.style.opacity = 0;
+		if (isNaN(Number(g_workObj.stepRtn[j]))) {
+			frzHit.appendChild(createColorObject(`frzHitShadow${j}`, `#000000`,
+				0, 0,
+				C_ARW_WIDTH, C_ARW_WIDTH, g_workObj.stepRtn[j], `arrowShadow`));
+
+			frzHit.appendChild(createArrowEffect(`frzHitTop${j}`, g_workObj.frzHitColors[j],
+				0, 0,
+				C_ARW_WIDTH, g_workObj.stepRtn[j]));
+
+		} else {
+			frzHit.appendChild(createColorObject(`frzHitTop${j}`, `#ffffff`,
+				-10, -10,
+				C_ARW_WIDTH + 20, C_ARW_WIDTH + 20, g_workObj.stepRtn[j], `arrowShadow`));
 		}
 	}
 
@@ -7395,10 +7517,11 @@ function MainInit() {
 		const lblReady = createDivLabel(`lblReady`, g_sWidth / 2 - 100, g_sHeight / 2 - 75,
 			200, 50, 40, C_CLR_TITLE,
 			`<span style='color:` + g_headerObj.setColor[0] + `;font-size:60px;'>R</span>EADY<span style='font-size:50px;'>?</span>`);
-		divRoot.appendChild(lblReady);
 		lblReady.style.animationDuration = `2.5s`;
 		lblReady.style.animationName = `leftToRightFade`;
+		lblReady.style.animationDelay = `${g_headerObj.readyDelayFrame / g_fps}s`;
 		lblReady.style.opacity = 0;
+		divRoot.appendChild(lblReady);
 	}
 
 	/**
@@ -7554,25 +7677,25 @@ function MainInit() {
 	const judgeObjDelete = {
 		arrow: (_j, _deleteObj) => {
 			g_workObj.judgArrowCnt[_j]++;
-			mainSprite.removeChild(_deleteObj);
+			arrowSprite[Number(_deleteObj.getAttribute(`dividePos`))].removeChild(_deleteObj);
 		},
 		dummyArrow: (_j, _deleteObj) => {
 			g_workObj.judgDummyArrowCnt[_j]++;
-			mainSprite.removeChild(_deleteObj);
+			arrowSprite[Number(_deleteObj.getAttribute(`dividePos`))].removeChild(_deleteObj);
 		},
 		frz: (_j, _deleteObj) => {
 			g_workObj.judgFrzCnt[_j]++;
-			mainSprite.removeChild(_deleteObj);
+			arrowSprite[Number(_deleteObj.getAttribute(`dividePos`))].removeChild(_deleteObj);
 		},
 		dummyFrz: (_j, _deleteObj) => {
 			g_workObj.judgDummyFrzCnt[_j]++;
-			mainSprite.removeChild(_deleteObj);
+			arrowSprite[Number(_deleteObj.getAttribute(`dividePos`))].removeChild(_deleteObj);
 		},
 	};
 
 	/**
 	 * 自動判定
-	 * ※MainInit内部で指定必須（mainSprite指定）
+	 * ※MainInit内部で指定必須（arrowSprite指定）
 	 * 
 	 * @param _j 矢印位置
 	 * @param _arrow 矢印(オブジェクト)
@@ -7610,9 +7733,9 @@ function MainInit() {
 				const stepDivHit = document.querySelector(`#stepHit${_j}`);
 
 				if (typeof customJudgeDummyArrow === `function`) {
-					customJudgeDummyArrow(difFrame);
+					customJudgeDummyArrow(_cnt);
 					if (typeof customJudgeDummyArrow2 === `function`) {
-						customJudgeDummyArrow2(difFrame);
+						customJudgeDummyArrow2(_cnt);
 					}
 				}
 				stepDivHit.style.opacity = 1;
@@ -7625,6 +7748,7 @@ function MainInit() {
 		// フリーズアロー(成功時)
 		frzOK: (_j, _k, _frzRoot, _cnt) => {
 			judgeKita(_cnt);
+			document.querySelector(`#frzHit${_j}`).style.opacity = 0;
 			_frzRoot.setAttribute(`judgEndFlg`, `true`);
 			judgeObjDelete.frz(_j, _frzRoot);
 		},
@@ -7632,11 +7756,12 @@ function MainInit() {
 		// ダミーフリーズアロー(成功時)
 		dummyFrzOK: (_j, _k, _frzRoot, _cnt) => {
 			if (typeof customJudgeDummyFrz === `function`) {
-				customJudgeDummyFrz(difFrame);
+				customJudgeDummyFrz(_cnt);
 				if (typeof customJudgeDummyFrz2 === `function`) {
-					customJudgeDummyFrz2(difFrame);
+					customJudgeDummyFrz2(_cnt);
 				}
 			}
+			document.querySelector(`#frzHit${_j}`).style.opacity = 0;
 			_frzRoot.setAttribute(`judgEndFlg`, `true`);
 			judgeObjDelete.dummyFrz(_j, _frzRoot);
 		},
@@ -7762,16 +7887,18 @@ function MainInit() {
 	 */
 	function makeArrow(_j, _arrowCnt, _name, _color) {
 		const boostSpdDir = g_workObj.boostSpd * g_workObj.scrollDir[_j];
+		const dividePos = g_workObj.dividePos[_j];
 
-		const stepRoot = createSprite(`mainSprite`, `${_name}${_j}_${_arrowCnt}`,
+		const stepRoot = createSprite(`arrowSprite${dividePos}`, `${_name}${_j}_${_arrowCnt}`,
 			g_workObj.stepX[_j],
-			g_stepY + (g_distY - g_stepY - 50) * g_workObj.dividePos[_j] + g_workObj.initY[g_scoreObj.frameNum] * boostSpdDir,
+			g_stepY + (g_distY - g_stepY - 50) * dividePos + g_workObj.initY[g_scoreObj.frameNum] * boostSpdDir,
 			50, 100);
 		stepRoot.setAttribute(`cnt`, g_workObj.arrivalFrame[g_scoreObj.frameNum] + 1);
 		stepRoot.setAttribute(`boostCnt`, g_workObj.motionFrame[g_scoreObj.frameNum]);
 		stepRoot.setAttribute(`judgEndFlg`, `false`);
 		stepRoot.setAttribute(`boostSpd`, boostSpdDir);
-		mainSprite.appendChild(stepRoot);
+		stepRoot.setAttribute(`dividePos`, dividePos);
+		arrowSprite[dividePos].appendChild(stepRoot);
 
 		if (g_workObj[`${_name}CssMotions`][_j] !== ``) {
 			stepRoot.classList.add(g_workObj[`${_name}CssMotions`][_j]);
@@ -7834,10 +7961,11 @@ function MainInit() {
 		const camelHeader = _name.slice(0, 1).toUpperCase() + _name.slice(1);
 		const frzLength = g_workObj[`mk${camelHeader}Length`][_j][(_arrowCnt - 1) * 2];
 		const boostSpdDir = g_workObj.boostSpd * g_workObj.scrollDir[_j];
+		const dividePos = g_workObj.dividePos[_j];
 
-		const frzRoot = createSprite(`mainSprite`, `${_name}${_j}_${_arrowCnt}`,
+		const frzRoot = createSprite(`arrowSprite${dividePos}`, `${_name}${_j}_${_arrowCnt}`,
 			g_workObj.stepX[_j],
-			g_stepY + (g_distY - g_stepY - 50) * g_workObj.dividePos[_j] + g_workObj.initY[g_scoreObj.frameNum] * boostSpdDir,
+			g_stepY + (g_distY - g_stepY - 50) * dividePos + g_workObj.initY[g_scoreObj.frameNum] * boostSpdDir,
 			50, 100 + frzLength);
 		frzRoot.setAttribute(`cnt`, g_workObj.arrivalFrame[g_scoreObj.frameNum] + 1);
 		frzRoot.setAttribute(`boostCnt`, g_workObj.motionFrame[g_scoreObj.frameNum]);
@@ -7846,8 +7974,8 @@ function MainInit() {
 		frzRoot.setAttribute(`frzBarLength`, frzLength);
 		frzRoot.setAttribute(`frzAttempt`, 0);
 		frzRoot.setAttribute(`boostSpd`, boostSpdDir);
-		frzRoot.setAttribute(`dividePos`, g_workObj.dividePos[_j]);
-		mainSprite.appendChild(frzRoot);
+		frzRoot.setAttribute(`dividePos`, dividePos);
+		arrowSprite[dividePos].appendChild(frzRoot);
 
 		if (g_workObj[`${_name}CssMotions`][_j] !== ``) {
 			frzRoot.classList.add(g_workObj[`${_name}CssMotions`][_j]);
@@ -7858,9 +7986,10 @@ function MainInit() {
 		// 後に作成するほど前面に表示される。
 
 		// フリーズアロー帯(frzBar)
-		frzRoot.appendChild(createColorObject(`${_name}Bar${_j}_${_arrowCnt}`, _barColor,
-			5, C_ARW_WIDTH / 2 - frzLength * g_workObj.boostSpd * g_workObj.dividePos[_j],
+		const frzBar = frzRoot.appendChild(createColorObject(`${_name}Bar${_j}_${_arrowCnt}`, _barColor,
+			5, C_ARW_WIDTH / 2 - frzLength * g_workObj.boostSpd * dividePos,
 			C_ARW_WIDTH - 10, frzLength * g_workObj.boostSpd, 0, `frzBar`));
+		frzBar.style.opacity = 0.75;
 
 		// 開始矢印の塗り部分。ヒット時は前面に出て光る。
 		frzRoot.appendChild(createColorObject(`${_name}TopShadow${_j}_${_arrowCnt}`, `#000000`,
@@ -8053,11 +8182,11 @@ function MainInit() {
 		}
 
 		// 速度変化 (途中変速, 個別加速)
-		if (g_workObj.speedData !== undefined && g_scoreObj.frameNum === g_workObj.speedData[speedCnts]) {
+		while (g_workObj.speedData !== undefined && g_scoreObj.frameNum >= g_workObj.speedData[speedCnts]) {
 			g_workObj.currentSpeed = g_workObj.speedData[speedCnts + 1];
 			speedCnts += 2;
 		}
-		if (g_workObj.boostData !== undefined && g_scoreObj.frameNum === g_workObj.boostData[boostCnts]) {
+		while (g_workObj.boostData !== undefined && g_scoreObj.frameNum >= g_workObj.boostData[boostCnts]) {
 			g_workObj.boostSpd = g_workObj.boostData[boostCnts + 1];
 			boostCnts += 2;
 		}
@@ -8249,24 +8378,6 @@ function MainInit() {
 			}
 		}
 
-		// 60fpsから遅延するため、その差分を取って次回のタイミングで遅れをリカバリする
-		thisTime = performance.now();
-		buffTime = 0;
-		if (g_scoreObj.frameNum >= musicStartFrame) {
-			buffTime = (thisTime - musicStartTime - (g_scoreObj.frameNum - musicStartFrame) * 1000 / g_fps);
-		}
-		g_scoreObj.frameNum++;
-		g_scoreObj.nominalFrameNum++;
-		g_timeoutEvtId = setTimeout(_ => flowTimeline(), 1000 / g_fps - buffTime);
-
-		// タイマー
-		if (g_scoreObj.nominalFrameNum % g_fps === 0) {
-			if (g_scoreObj.nominalFrameNum >= 0) {
-				const currentMin = Math.floor(g_scoreObj.nominalFrameNum / 60 / g_fps);
-				const currentSec = `00${(g_scoreObj.nominalFrameNum / g_fps) % 60}`.slice(-2);
-				lblTime1.innerHTML = `${currentMin}:${currentSec}`;
-			}
-		}
 		// 曲終了判定
 		if (g_scoreObj.frameNum >= fullFrame) {
 			if (g_scoreObj.fadeOutFrame === Infinity && isNaN(parseInt(g_headerObj.endFrame))) {
@@ -8280,17 +8391,37 @@ function MainInit() {
 				clearWindow();
 				resultInit();
 			}, 100);
-		} else if (g_workObj.lifeVal === 0) {
+
+		} else if (g_workObj.lifeVal === 0 && g_workObj.lifeBorder === 0) {
 
 			// ライフ制＆ライフ０の場合は途中終了
-			if (g_workObj.lifeBorder === 0) {
-				g_audio.pause();
-				clearTimeout(g_timeoutEvtId);
-				clearWindow();
-				g_gameOverFlg = true;
-				g_finishFlg = false;
-				resultInit();
+			g_audio.pause();
+			clearTimeout(g_timeoutEvtId);
+			clearWindow();
+			g_gameOverFlg = true;
+			g_finishFlg = false;
+			resultInit();
+
+		} else {
+
+			// タイマー
+			if (Math.floor(g_scoreObj.nominalFrameNum % g_fps) === 0) {
+				if (g_scoreObj.nominalFrameNum >= 0) {
+					const currentMin = Math.floor(g_scoreObj.nominalFrameNum / 60 / g_fps);
+					const currentSec = `00${Math.floor(g_scoreObj.nominalFrameNum / g_fps) % 60}`.slice(-2);
+					lblTime1.innerHTML = `${currentMin}:${currentSec}`;
+				}
 			}
+
+			// 60fpsから遅延するため、その差分を取って次回のタイミングで遅れをリカバリする
+			thisTime = performance.now();
+			buffTime = 0;
+			if (g_scoreObj.frameNum >= musicStartFrame) {
+				buffTime = (thisTime - musicStartTime - (g_scoreObj.frameNum - musicStartFrame) * 1000 / g_fps);
+			}
+			g_scoreObj.frameNum++;
+			g_scoreObj.nominalFrameNum++;
+			g_timeoutEvtId = setTimeout(_ => flowTimeline(), 1000 / g_fps - buffTime);
 		}
 	}
 	g_timeoutEvtId = setTimeout(_ => flowTimeline(), 1000 / g_fps);
@@ -8378,6 +8509,9 @@ function changeFrzColors(_mkColor, _mkColorCd, _colorPatterns, _keyNum, _allFlg)
 							g_workObj.frzHitColors[k] = _mkColorCd[j];
 							if (_allFlg === `A`) {
 								g_workObj.frzHitColorsAll[k] = _mkColorCd[j];
+								if (isNaN(Number(g_workObj.stepRtn[k]))) {
+									document.querySelector(`#frzHitTop${k}`).style.backgroundColor = _mkColorCd[j];
+								}
 							}
 						}
 					}
@@ -8420,28 +8554,21 @@ function changeCssMotions(_mkCssMotion, _mkCssMotionName, _name) {
  */
 function changeHitFrz(_j, _k, _name) {
 
-	const frzTopShadow = document.querySelector(`#${_name}TopShadow${_j}_${_k}`);
-	if (frzTopShadow.getAttribute(`type`) === `arrow`) {
-		const fstyle = frzTopShadow.style;
-		fstyle.backgroundColor = `#ffffff`;
-		fstyle.top = `-10px`;
-		fstyle.left = `-10px`;
-		fstyle.width = `70px`;
-		fstyle.height = `70px`;
-		document.querySelector(`#${_name}Top${_j}_${_k}`).style.opacity = 0;
-	} else {
-		document.querySelector(`#${_name}Top${_j}_${_k}`).style.backgroundColor = g_workObj.frzHitColors[_j];
+	if (_name === `frz`) {
+		document.querySelector(`#frzHit${_j}`).style.opacity = 0.9;
+		document.querySelector(`#frzTop${_j}_${_k}`).style.opacity = 0;
+		if (isNaN(Number(g_workObj.stepRtn[_j]))) {
+			document.querySelector(`#frzHitTop${_j}`).style.backgroundColor = g_workObj.frzHitColors[_j];
+		}
 	}
-
 	const frzBar = document.querySelector(`#${_name}Bar${_j}_${_k}`);
 	const frzRoot = document.querySelector(`#${_name}${_j}_${_k}`);
 	const frzBtm = document.querySelector(`#${_name}Btm${_j}_${_k}`);
 	const frzBtmShadow = document.querySelector(`#${_name}BtmShadow${_j}_${_k}`);
+	const dividePos = Number(frzRoot.getAttribute(`dividePos`));
 
-	if (_name === `frz`) {
-		frzBar.style.backgroundColor = g_workObj.frzHitBarColors[_j];
-		frzBtm.style.backgroundColor = g_workObj.frzHitColors[_j];
-	}
+	frzBar.style.backgroundColor = g_workObj[`${_name}HitBarColors`][_j];
+	frzBtm.style.backgroundColor = g_workObj[`${_name}HitColors`][_j];
 
 	// フリーズアロー位置の修正（ステップゾーン上に来るように）
 	const delFrzLength = parseFloat(document.querySelector(`#step${_j}`).style.top) - parseFloat(frzRoot.style.top);
@@ -8449,7 +8576,7 @@ function changeHitFrz(_j, _k, _name) {
 	frzRoot.style.top = document.querySelector(`#step${_j}`).style.top;
 	frzBtm.style.top = `${parseFloat(frzBtm.style.top) - delFrzLength}px`;
 	frzBtmShadow.style.top = `${parseFloat(frzBtmShadow.style.top) - delFrzLength}px`;
-	frzBar.style.top = `${parseFloat(frzBar.style.top) - delFrzLength * g_workObj.dividePos[_j]}px`;
+	frzBar.style.top = `${parseFloat(frzBar.style.top) - delFrzLength * dividePos}px`;
 	frzBar.style.height = `${parseFloat(frzBar.style.height) - delFrzLength * g_workObj.scrollDir[_j]}px`;
 
 	frzRoot.setAttribute(`isMoving`, `false`);
@@ -8461,17 +8588,11 @@ function changeHitFrz(_j, _k, _name) {
  * @param {number} _k 
  */
 function changeFailedFrz(_j, _k) {
-	const frzTopShadow = document.querySelector(`#frzTopShadow${_j}_${_k}`);
-	const fstyle = frzTopShadow.style;
-	fstyle.backgroundColor = `#000000`;
-	fstyle.top = `0px`;
-	fstyle.left = `0px`;
-	fstyle.width = `50px`;
-	fstyle.height = `50px`;
-	fstyle.opacity = 1;
+	document.querySelector(`#frzHit${_j}`).style.opacity = 0;
 	document.querySelector(`#frzTop${_j}_${_k}`).style.opacity = 1;
 	document.querySelector(`#frzTop${_j}_${_k}`).style.backgroundColor = `#cccccc`;
 	document.querySelector(`#frzBar${_j}_${_k}`).style.backgroundColor = `#999999`;
+	document.querySelector(`#frzBar${_j}_${_k}`).style.opacity = 1;
 	document.querySelector(`#frzBtm${_j}_${_k}`).style.backgroundColor = `#cccccc`;
 }
 
@@ -8492,7 +8613,6 @@ function judgeArrow(_j) {
 	if (!g_judgObj.lockFlgs[_j]) {
 		g_judgObj.lockFlgs[_j] = true;
 
-		const mainSprite = document.querySelector(`#mainSprite`);
 		const currentNo = g_workObj.judgArrowCnt[_j];
 		const stepDivHit = document.querySelector(`#stepHit${_j}`);
 		const judgArrow = document.querySelector(`#arrow${_j}_${currentNo}`);
@@ -8503,6 +8623,8 @@ function judgeArrow(_j) {
 			const difFrame = Number(judgArrow.getAttribute(`cnt`));
 			const difCnt = Math.abs(judgArrow.getAttribute(`cnt`));
 			const judgEndFlg = judgArrow.getAttribute(`judgEndFlg`);
+			const dividePos = Number(judgArrow.getAttribute(`dividePos`));
+			const arrowSprite = document.querySelector(`#arrowSprite${dividePos}`);
 
 			if (difCnt <= g_judgObj.arrowJ[C_JDG_UWAN] && judgEndFlg === `false`) {
 				stepDivHit.style.opacity = 0.75;
@@ -8522,7 +8644,7 @@ function judgeArrow(_j) {
 				}
 				stepDivHit.setAttribute(`cnt`, C_FRM_HITMOTION);
 
-				mainSprite.removeChild(judgArrow);
+				arrowSprite.removeChild(judgArrow);
 				g_workObj.judgArrowCnt[_j]++;
 
 				g_judgObj.lockFlgs[_j] = false;
@@ -8963,6 +9085,9 @@ function resultInit() {
 	if (g_stateObj.reverse !== C_FLG_OFF) {
 		playStyleData += `, Reverse`;
 	}
+	if (g_stateObj.appearance !== `Visible`) {
+		playStyleData += `, ${g_stateObj.appearance}`;
+	}
 	if (g_stateObj.gauge !== `Original` && g_stateObj.gauge !== `Normal`) {
 		playStyleData += `, ${g_stateObj.gauge}`;
 	}
@@ -9096,7 +9221,7 @@ function resultInit() {
 				g_localStorage.highscores[scoreName].fmaxCombo = g_resultObj.fmaxCombo;
 				g_localStorage.highscores[scoreName].score = g_resultObj.score;
 
-				localStorage.setItem(location.href, JSON.stringify(g_localStorage));
+				localStorage.setItem(g_localStorageUrl, JSON.stringify(g_localStorage));
 			}
 		} else {
 			iiDf = g_resultObj.ii;
@@ -9123,7 +9248,7 @@ function resultInit() {
 				g_localStorage.highscores[scoreName].fmaxCombo = g_resultObj.fmaxCombo;
 				g_localStorage.highscores[scoreName].score = g_resultObj.score;
 
-				localStorage.setItem(location.href, JSON.stringify(g_localStorage));
+				localStorage.setItem(g_localStorageUrl, JSON.stringify(g_localStorage));
 			}
 		}
 
@@ -9190,7 +9315,7 @@ function resultInit() {
 		${g_resultObj.ii}-${g_resultObj.shakin}-${g_resultObj.matari}-${g_resultObj.shobon}-${g_resultObj.uwan}/
 		${g_resultObj.kita}-${g_resultObj.iknai}/
 		${g_resultObj.maxCombo}-${g_resultObj.fmaxCombo} 
-		${location.href}`.replace(/[\t\n]/g, ``);
+		${g_localStorageUrl}`.replace(/[\t\n]/g, ``);
 	const tweetResult = `https://twitter.com/intent/tweet?text=${encodeURIComponent(tweetResultTmp)}`;
 
 
