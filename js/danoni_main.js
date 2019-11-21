@@ -7210,13 +7210,16 @@ function MainInit() {
 
 		const stepRoot = createSprite(`arrowSprite${dividePos}`, `${_name}${_j}_${_arrowCnt}`,
 			g_workObj.stepX[_j],
-			g_stepY + (g_distY - g_stepY - 50) * dividePos + g_workObj.initY[g_scoreObj.frameNum] * boostSpdDir,
+			g_stepY + (g_distY - g_stepY - 50) * dividePos,
 			C_ARW_WIDTH, C_ARW_WIDTH);
+		const translateY = g_workObj.initY[g_scoreObj.frameNum] * boostSpdDir;
+		stepRoot.style.transform = `translateY(${translateY}px)`;
 		stepRoot.setAttribute(`cnt`, g_workObj.arrivalFrame[g_scoreObj.frameNum] + 1);
 		stepRoot.setAttribute(`boostCnt`, g_workObj.motionFrame[g_scoreObj.frameNum]);
 		stepRoot.setAttribute(`judgEndFlg`, `false`);
 		stepRoot.setAttribute(`boostSpd`, boostSpdDir);
 		stepRoot.setAttribute(`dividePos`, dividePos);
+		stepRoot.setAttribute(`translateY`, translateY);
 		arrowSprite[dividePos].appendChild(stepRoot);
 
 		if (g_workObj[`${_name}CssMotions`][_j] !== ``) {
@@ -7259,8 +7262,10 @@ function MainInit() {
 
 		// 移動
 		if (g_workObj.currentSpeed !== 0) {
-			arrow.style.top = `${parseFloat(arrow.style.top) -
-				(g_workObj.currentSpeed + g_workObj.motionOnFrames[boostCnt]) * boostSpdDir}px`;
+			const translateY = parseFloat(arrow.getAttribute(`translateY`)) -
+				(g_workObj.currentSpeed + g_workObj.motionOnFrames[boostCnt]) * boostSpdDir;
+			arrow.style.transform = `translateY(${translateY}px)`;
+			arrow.setAttribute(`translateY`, translateY);
 			arrow.setAttribute(`boostCnt`, --boostCnt);
 		}
 		arrow.setAttribute(`cnt`, --cnt);
