@@ -1068,11 +1068,16 @@ function loadDos(_initFlg) {
 
 	const dosInput = document.querySelector(`#dos`);
 	const externalDosInput = document.querySelector(`#externalDos`);
+	const multipleDosInput = document.querySelector(`#multipleDos`);
 	const divRoot = document.querySelector(`#divRoot`);
 
-	if (dosInput === null && externalDosInput === null) {
+	if (dosInput === null && externalDosInput === null && multipleDosInput == null) {
 		makeWarningWindow(C_MSG_E_0023);
 		initAfterDosLoaded();
+	}
+
+	if (multipleDosInput !== null) {
+
 	}
 
 	// 譜面分割あり、譜面番号固定時のみ譜面データを一時クリア
